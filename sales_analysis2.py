@@ -1,64 +1,66 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
+from tkinter import Tk, Button
 
 # Load data
-data = pd.read_csv("sales.csv")
-data["Revenue"] = data["quantity"] * data["price"]
-data["date"] = pd.to_datetime(data["date"])
-data["month"] = data["date"].dt.to_period("M")
+df = pd.read_csv("sales.csv", parse_dates=["date"])
+df["Revenue"] = df["quantity"] * df["price"]
+df["Month"] = df["date"].dt.to_period("M")
 
-# --- Basic stats ---
-print("\n--- Basic Sales Stats ---")
-print(f"Total Revenue: ${data['Revenue'].sum():,.2f}")
-print(f"Average Revenue per transaction: ${data['Revenue'].mean():,.2f}")
-print(f"Total Quantity Sold: {data['quantity'].sum()} units")
+# --- Functions for plots ---
+def revenue_by_month():
+    revenue = df.groupby("Month")["Revenue"].sum()
+    revenue.plot(kind="line", marker="o", figsize=(8,5), title="Revenue by Month")
+    plt.ylabel("Revenue ($)")
+    plt.grid(True)
+    plt.show()
 
-# --- Top Products ---
-top3_revenue = data.groupby("product")["Revenue"].sum().sort_values(ascending=False).head(3)
-top3_quantity = data.groupby("product")["quantity"].sum().sort_values(ascending=False).head(3)
-print("\nTop 3 Products by Revenue:")
-print(top3_revenue)
-print("\nTop 3 Products by Quantity Sold:")
-print(top3_quantity)
+def revenue_by_product():
+    revenue = df.groupby("product")["Revenue"].sum().sort_values(ascending=False)
+    revenue.plot(kind="bar", figsize=(8,5), title="Revenue by Product", color="skyblue")
+    plt.ylabel("Revenue ($)")
+    plt.show()
 
-# --- Revenue and Quantity by Month ---
-rev_by_month = data.groupby("month")["Revenue"].sum()
-qty_by_month = data.groupby("month")["quantity"].sum()
-print("\nRevenue by Month:")
-print(rev_by_month)
-print("\nQuantity Sold by Month:")
-print(qty_by_month)
+def top_days():
+    top_days = df.groupby(df["date"].dt.date)["Revenue"].sum().sort_values(ascending=False).head(5)
+    top_days.plot(kind="bar", figsize=(8,5), title="Top 5 Sales Days", color="orange")
+    plt.ylabel("Revenue ($)")
+    plt.xticks(rotation=30)
+    plt.show()
 
-# --- Share of Revenue and Quantity ---
-share_revenue = data.groupby("product")["Revenue"].sum() / data["Revenue"].sum() * 100
-share_quantity = data.groupby("product")["quantity"].sum() / data["quantity"].sum() * 100
-print("\nShare of Revenue by Product (%):")
-print(share_revenue)
-print("\nShare of Quantity by Product (%):")
-print(share_quantity)
+def price_distribution():
+    plt.figure(figsize=(8,6))
+    sns.boxplot(x="product", y="price", data=df, palette="Set2")
+    plt.title("Price Distribution by Product")
+    plt.ylabel("Price ($)")
+    plt.xlabel("Product")
+    plt.show()
 
-# --- Visualization ---
-plt.figure(figsize=(10,5))
-rev_by_month.plot(kind="bar", color="skyblue")
-plt.title("Revenue by Month")
-plt.ylabel("Revenue ($)")
-plt.xlabel("Month")
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
+def heatmap():
+    pivot = df.pivot_table(index="Month", columns="product", values="Revenue", aggfunc="sum").fillna(0)
+    plt.figure(figsize=(8,6))
+    sns.heatmap(pivot, cmap="YlGnBu", annot=True, fmt=".0f")
+    plt.title("Revenue Heatmap (Month × Product)")
+    plt.show()
 
-plt.figure(figsize=(10,5))
-qty_by_month.plot(kind="bar", color="green")
-plt.title("Quantity Sold by Month")
-plt.ylabel("Units Sold")
-plt.xlabel("Month")
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
+def pie_chart():
+    revenue = df.groupby("product")["Revenue"].sum()
+    plt.figure(figsize=(6,6))
+    plt.pie(revenue, labels=revenue.index, autopct="%1.1f%%", startangle=90, colors=sns.color_palette("Set2"))
+    plt.title("Revenue Share by Product")
+    plt.show()
 
-# Pie chart for revenue share
-plt.figure(figsize=(7,7))
-share_revenue.plot(kind="pie", autopct='%1.1f%%', startangle=90)
-plt.title("Revenue Share by Product")
-plt.ylabel("")
-plt.show()
+# --- Tkinter GUI ---
+root = Tk()
+root.title("Sales Analysis Dashboard")
+
+Button(root, text="Revenue by Month", width=25, command=revenue_by_month).pack(pady=5)
+Button(root, text="Revenue by Product", width=25, command=revenue_by_product).pack(pady=5)
+Button(root, text="Top 5 Sales Days", width=25, command=top_days).pack(pady=5)
+Button(root, text="Price Distribution", width=25, command=price_distribution).pack(pady=5)
+Button(root, text="Revenue Heatmap", width=25, command=heatmap).pack(pady=5)
+Button(root, text="Revenue Share (Pie)", width=25, command=pie_chart).pack(pady=5)
+Button(root, text="Exit", width=25, command=root.quit).pack(pady=5)
+
+root.mainloop()
